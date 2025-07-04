@@ -8,25 +8,32 @@ import {
   Post,
 } from '@nestjs/common';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { DoctorWithQualifications } from './types/doctor.types';
 import { UserService } from './user.service';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-
+  //CREATE DOCTOR WITH CreateDoctorDto
   @Post('/doctor')
-  createDoctor(@Body() CreateDoctorDto: CreateDoctorDto) {
-    return this.userService.createDoctor(CreateDoctorDto);
+  async createDoctor(@Body() CreateDoctorDto: CreateDoctorDto) {
+    const result = await this.userService.createDoctor(CreateDoctorDto);
+    if (!result) {
+      return {
+        success: false,
+        message: 'Doctor Creation Failed!',
+      };
+    }
+    return {
+      success: true,
+      message: 'Doctor Created Successfully!',
+    };
   }
-
+  //TAKE A PARAM AND FIND A ACTUAL DATA
   @Get('/doctor/:id')
   async findADoctor(@Param('id') id: string) {
-    const result: DoctorWithQualifications | null =
-      await this.userService.findADoctor(id);
+    const result = await this.userService.findADoctor(id);
 
-    if (!result) {
+    if (!result.success) {
       return {
         success: false,
         message: 'Doctor Not Found!',
@@ -35,13 +42,23 @@ export class UserController {
     return {
       success: true,
       message: 'Doctor Found!',
-      data: {
-        ...result,
-        qualifications: result.qualifications.map((dq) => ({
-          id: dq.qualification.id,
-          name: dq.qualification.name,
-        })),
-      },
+      data: result.data,
+    };
+  }
+  //FIND ALL THE DOCTORS
+  @Get('/doctors')
+  async findAllDoctor() {
+    const result = await this.userService.findAllDoctor();
+    if (!result) {
+      return {
+        success: false,
+        message: 'There is no doctor!',
+      };
+    }
+    return {
+      success: true,
+      message: 'All Doctors Retrieved Successfully!',
+      data: result,
     };
   }
 
@@ -51,7 +68,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(@Param('id') id: string, @Body() updateUserDto) {
     return this.userService.update(+id, updateUserDto);
   }
 

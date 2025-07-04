@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma-service/prisma.service';
+import { omit } from 'src/utils/omit';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-
-
 
 @Injectable()
 export class UserService {
@@ -82,12 +81,13 @@ export class UserService {
         }),
       );
 
-      return { user, doctor, qualifications: qualificationRecords };
+      return user;
     });
   }
 
   async findADoctor(id: string) {
-    return this.prisma.doctor.findUnique({
+    //FIND THE DOCTOR
+    const result = await this.prisma.doctor.findUnique({
       where: {
         id,
       },
@@ -97,12 +97,97 @@ export class UserService {
             qualification: true,
           },
         },
+        user: true,
       },
     });
+    // PASS FALSE TO CONTROLLER IF NOT FOUND
+    if (!result || !result.user) {
+      return {
+        success: false,
+      };
+    }
+
+    //OMIT THE UNUSED VARS
+    const publicUser = omit(result.user, [
+      'id',
+      'password',
+      'needPasswordChange',
+      'status',
+      'isDeleted',
+      'deletedAt',
+      'createdAt',
+      'updatedAt',
+    ]);
+    // OMIT AND EXTRACT VALUES
+    const doctorData = omit(result, ['user']);
+    const { id: doctorId, userId, ...doctor } = doctorData;
+    //PASS TRUE TO CONTROLLER IF GOT DATA
+    return {
+      success: true,
+      data: {
+        doctorId,
+        userId,
+        ...publicUser,
+        ...doctor,
+        qualifications: doctor.qualifications.map((dq) => ({
+          id: dq.qualification.id,
+          name: dq.qualification.name,
+        })),
+      },
+    };
   }
 
-  findAll() {
-    return `This action returns all user`;
+  async findAllDoctor() {
+    //FIND ALL DOCTORS
+    const results = await this.prisma.doctor.findMany({
+      include: {
+        qualifications: {
+          include: {
+            qualification: true,
+          },
+        },
+        user: true,
+      },
+    });
+    //PASS FALSE TO CONTROLLER IF NOT FOUND
+    if (!results) {
+      return {
+        success: false,
+      };
+    }
+    //PASS TRUE TO CONTROLLER IF GOT DATA
+    return {
+      success: true,
+      // MAP ON EACH DOCTOR IN ARRAY TO MAINTAIN THE SHAPE
+      data: results.map((doctor) => {
+        if (!doctor.user) return null;
+        // OMIT UNUSED VARS AND EXTRACT REQUIRED VARS
+        const publicUser = omit(doctor.user, [
+          'id',
+          'password',
+          'needPasswordChange',
+          'status',
+          'isDeleted',
+          'deletedAt',
+          'createdAt',
+          'updatedAt',
+        ]);
+        // OMIT UNUSED VARS AND EXTRACT REQUIRED VARS
+        const doctorData = omit(doctor, ['user']);
+        const { id: doctorId, userId, ...doc } = doctorData;
+        //RETURN THE ACTUAL SHAPE
+        return {
+          doctorId,
+          userId,
+          ...publicUser,
+          ...doc,
+          qualifications: doc.qualifications.map((dq) => ({
+            id: dq.qualification.id,
+            name: dq.qualification.name,
+          })),
+        };
+      }),
+    };
   }
 
   findOne(id: number) {
