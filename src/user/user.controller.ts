@@ -7,22 +7,42 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DoctorWithQualifications } from './types/doctor.types';
 import { UserService } from './user.service';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  @Post('/doctor')
+  createDoctor(@Body() CreateDoctorDto: CreateDoctorDto) {
+    return this.userService.createDoctor(CreateDoctorDto);
   }
 
-  @Get()
-  findAll() {
-    return this.userService.findAll();
+  @Get('/doctor/:id')
+  async findADoctor(@Param('id') id: string) {
+    const result: DoctorWithQualifications | null =
+      await this.userService.findADoctor(id);
+
+    if (!result) {
+      return {
+        success: false,
+        message: 'Doctor Not Found!',
+      };
+    }
+    return {
+      success: true,
+      message: 'Doctor Found!',
+      data: {
+        ...result,
+        qualifications: result.qualifications.map((dq) => ({
+          id: dq.qualification.id,
+          name: dq.qualification.name,
+        })),
+      },
+    };
   }
 
   @Get(':id')

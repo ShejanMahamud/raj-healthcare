@@ -13,3 +13,93 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id                 String     @id @default(uuid())
+  name               String
+  email              String     @unique
+  password           String
+  role               UserRole
+  profilePhoto       String     @default("https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff")
+  contactNumber      String
+  needPasswordChange Boolean    @default(false)
+  status             UserStatus @default(ACTIVE)
+  isDeleted          Boolean    @default(false)
+  deletedAt          DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  admin              Admin?
+  patient            Patient?
+  doctor             Doctor?
+
+  @@map("users")
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("admins")
+}
+
+model Patient {
+  id      String @id @default(uuid())
+  userId  String @unique
+  gender  Gender
+  address String
+  user    User   @relation(fields: [userId], references: [id])
+
+  @@map("patients")
+}
+
+model Doctor {
+  id                  String                @id @default(uuid())
+  userId              String                @unique
+  address             String
+  registrationNumber  String                @unique
+  experience          Int                   @default(0)
+  gender              Gender
+  appointmentFee      Int
+  currentWorkingPlace String
+  designation         String
+  averageRating       Float              @default(0)
+  user                User                  @relation(fields: [userId], references: [id])
+  qualifications      DoctorQualification[]
+
+  @@map("doctors")
+}
+
+model DoctorQualification {
+  id              String @id @default(uuid())
+  doctorId        String
+  qualificationId String
+
+  doctor        Doctor        @relation(fields: [doctorId], references: [id])
+  qualification Qualification @relation(fields: [qualificationId], references: [id])
+}
+
+model Qualification {
+  id        String                @id @default(uuid())
+  name      String
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  doctors   DoctorQualification[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  DOCTOR
+  PATIENT
+}
